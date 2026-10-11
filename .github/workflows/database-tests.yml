@@ -1,0 +1,71 @@
+name: Database Tests & Security Validation
+
+'on':
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  test-database:
+    name: Run Database Migrations & Security Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint and TypeScript verification
+        run: |
+          npm run lint
+          npx tsc --noEmit
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: pip install psycopg2-binary
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase local emulator
+        run: supabase start
+
+      - name: Verify migration applies cleanly to fresh database
+        run: supabase db reset
+
+      - name: Verify all public tables have Row-Level Security enabled
+        run: python scripts/verify_rls_enabled.py
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 54322
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+
+      - name: Run pgTAP migration and RLS tests
+        run: supabase test db
+
+      - name: Run genuine two-session last-owner concurrency test
+        run: python scripts/test_concurrency.py
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 54322
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres

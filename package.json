@@ -1,0 +1,42 @@
+{
+  "name": "smartstudio-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered music studio management and audio production assistant for Muzico, Bengaluru.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "type-check": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HiteshNreddy/smartstudio-ai.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HiteshNreddy/smartstudio-ai/issues"
+  },
+  "homepage": "https://github.com/HiteshNreddy/smartstudio-ai#readme",
+  "dependencies": {
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.8",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.0",
+    "supabase": "^2.120.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
