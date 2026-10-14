@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "test": "node --test tests/authorization-and-crud.test.mjs tests/password-recovery.test.mjs"
+    "test": "node --test tests/authorization-and-crud.test.mjs tests/password-recovery.test.mjs tests/audio-analysis.test.mjs"
   },
   "repository": {
     "type": "git",
