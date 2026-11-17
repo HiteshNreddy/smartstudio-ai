@@ -9,13 +9,21 @@ import {
   type MultiChannelAudioAnalysis,
   SUPPORTED_AUDIO_EXTENSIONS,
 } from '@/lib/audio/analysis'
+import {
+  saveAudioAnalysisAction,
+  deleteAudioAnalysisAction,
+  listStudioAudioAnalysesAction,
+  type AudioAnalysisRow,
+} from './actions'
 
 interface AudioAnalysisClientViewProps {
+  studioId?: string
   studioName?: string
   userRole?: string
 }
 
 export default function AudioAnalysisClientView({
+  studioId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
   studioName = 'Muzico Studio',
   userRole = 'engineer',
 }: AudioAnalysisClientViewProps) {
@@ -27,6 +35,13 @@ export default function AudioAnalysisClientView({
   const [analysisResult, setAnalysisResult] = useState<MultiChannelAudioAnalysis | null>(null)
   const [isDragging, setIsDragging] = useState<boolean>(false)
   const [activeChannelTab, setActiveChannelTab] = useState<'combined' | 'per-channel'>('combined')
+
+  // Save report dialog state
+  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [notes, setNotes] = useState<string>('')
+  const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -152,6 +167,38 @@ export default function AudioAnalysisClientView({
     setValidationWarnings(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+    setSaveSuccess(null)
+    setSaveError(null)
+    setNotes('')
+    setShowSaveDialog(false)
+  }
+
+  const handleSave = async () => {
+    if (!analysisResult || !file) return
+    setIsSaving(true)
+    setSaveError(null)
+    setSaveSuccess(null)
+
+    const res = await saveAudioAnalysisAction({
+      studioId,
+      projectId: null,
+      fileName: file.name,
+      fileSizeBytes: file.size,
+      mimeType: file.type || 'audio/wav',
+      durationSeconds: analysisResult.durationSeconds,
+      sampleRate: analysisResult.sampleRate,
+      channelCount: analysisResult.numberOfChannels,
+      diagnosticsPayload: analysisResult,
+      notes: notes || undefined,
+    })
+
+    setIsSaving(false)
+    if (!res.success) {
+      setSaveError(res.error || 'Failed to save analysis report.')
+    } else {
+      setSaveSuccess('Audio analysis report successfully saved to studio database!')
+      setShowSaveDialog(false)
     }
   }
 
@@ -305,23 +352,83 @@ export default function AudioAnalysisClientView({
       {/* Diagnostic Results Section */}
       {analysisResult && file && (
         <div className="space-y-6">
-          {/* Temporary / In-Memory Notice Banner */}
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-300/90 flex items-start gap-3">
-            <svg className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1 leading-relaxed">
-              <span className="font-bold text-amber-200">Client-Side Session Analysis (Temporary): </span>
-              All measurements below are computed in-memory by your browser for this session. Audio files and
-              diagnostic metrics are neither uploaded to the server nor saved in the database.
+          {/* Session Notice & Actions Bar */}
+          <div className="rounded-xl border border-accent-500/30 bg-accent-600/5 p-4 text-xs text-text-secondary flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-accent-400 animate-pulse" />
+              <span>DSP measurements computed in browser memory. Metadata-only persistence ready.</span>
             </div>
-            <button
-              onClick={handleReset}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80 hover:bg-white/10 transition-colors shrink-0"
-            >
-              Clear Analysis
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSaveDialog(!showSaveDialog)}
+                disabled={isSaving}
+                className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-500 transition-colors disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Save to Studio Database'}
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10 transition-colors"
+              >
+                Clear Analysis
+              </button>
+            </div>
           </div>
+
+          {/* Save Status / Error Feedback */}
+          {saveSuccess && (
+            <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-3 text-xs text-green-300 flex items-center justify-between">
+              <span>{saveSuccess}</span>
+              <button onClick={() => setSaveSuccess(null)} className="text-green-400 hover:text-green-200">✕</button>
+            </div>
+          )}
+          {saveError && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 flex items-center justify-between">
+              <span>{saveError}</span>
+              <button onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-200">✕</button>
+            </div>
+          )}
+
+          {/* Save Report Options Panel */}
+          {showSaveDialog && (
+            <div className="glass-card rounded-xl p-4 border border-accent-500/30 space-y-3 bg-bg-surface">
+              <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider">Save Analysis Report</h4>
+              <p className="text-xs text-text-muted">
+                Save audio diagnostics metadata to studio <strong>{studioName}</strong>. Raw audio is never uploaded.
+              </p>
+              <div>
+                <label className="block text-[11px] font-medium text-text-secondary mb-1">
+                  Engineer Notes (Optional)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. Master vocal bus punch check, mix revision 2 notes..."
+                  className="w-full rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 text-xs text-text-primary focus:border-accent-500 focus:outline-none resize-none h-16"
+                  maxLength={500}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveDialog(false)}
+                  className="rounded-lg border border-white/10 px-3 py-1 text-xs text-text-muted hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="rounded-lg bg-accent-600 px-4 py-1 text-xs font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Confirm Save'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* File Overview Bar */}
           <div className="glass-card rounded-xl p-5 border border-border-subtle flex flex-wrap items-center justify-between gap-4">
