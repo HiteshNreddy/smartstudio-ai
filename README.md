@@ -2,7 +2,7 @@
 
 AI-powered music studio management and audio production assistant for **Muzico, Bengaluru**.
 
-## Tech Stack
+## Tech Stack and dependencies
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router, TypeScript)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
