@@ -28,7 +28,7 @@ async function FeedbackBanner({
       )}
 
       {message && (
-        <div className="mb-4 rounded-lg border border-violet-500/30 bg-violet-500/10 p-3 text-xs text-violet-300">
+        <div className="mb-4 rounded-lg border border-accent-500/30 bg-accent-500/10 p-3 text-xs text-accent-300">
           {message}
         </div>
       )}
@@ -43,14 +43,14 @@ export const metadata = {
 
 export default function ForgotPasswordPage({ searchParams }: ForgotPasswordPageProps) {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-[#111] p-4 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#161616] p-8 shadow-2xl">
+    <div className="flex min-h-screen w-full items-center justify-center bg-bg-primary p-4 text-text-primary">
+      <div className="w-full max-w-md rounded-2xl border border-border-default bg-bg-secondary p-8 shadow-2xl">
         <div className="mb-6 text-center">
-          <Link href="/login" className="text-2xl font-bold tracking-tight text-violet-500 hover:text-violet-400 transition-colors">
+          <Link href="/login" className="text-2xl font-bold tracking-tight text-accent-400 hover:text-accent-300 transition-colors">
             SmartStudio AI
           </Link>
-          <h1 className="mt-3 text-lg font-semibold text-white">Reset your password</h1>
-          <p className="mt-1 text-xs text-white/60">
+          <h1 className="mt-3 text-lg font-semibold text-text-primary">Reset your password</h1>
+          <p className="mt-1 text-xs text-text-secondary">
             Enter the email address associated with your studio account to receive a secure recovery link.
           </p>
         </div>
@@ -61,11 +61,11 @@ export default function ForgotPasswordPage({ searchParams }: ForgotPasswordPageP
 
         <form action={requestPasswordResetAction} className="flex flex-col gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-white/80" htmlFor="email">
+            <label className="mb-1.5 block text-sm font-medium text-text-secondary" htmlFor="email">
               Email Address
             </label>
             <input
-              className="w-full rounded-lg border border-white/10 bg-[#222] px-4 py-2.5 text-sm text-white placeholder-white/40 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-colors"
+              className="w-full rounded-lg border border-border-default bg-bg-elevated px-4 py-2.5 text-sm text-text-primary placeholder-text-muted focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500 transition-colors"
               id="email"
               name="email"
               type="email"
@@ -78,13 +78,13 @@ export default function ForgotPasswordPage({ searchParams }: ForgotPasswordPageP
           <div className="mt-2 flex flex-col gap-3">
             <button
               type="submit"
-              className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 transition-colors cursor-pointer"
+              className="w-full rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-bg-primary hover:bg-accent-500 transition-colors cursor-pointer"
             >
               Send Reset Link
             </button>
             <Link
               href="/login"
-              className="w-full text-center rounded-lg border border-white/10 bg-transparent px-4 py-2.5 text-sm font-medium text-white/80 hover:bg-white/5 transition-colors"
+              className="w-full text-center rounded-lg border border-border-default bg-transparent px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-white/5 transition-colors"
             >
               Back to Log In
             </Link>

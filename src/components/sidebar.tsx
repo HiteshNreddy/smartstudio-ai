@@ -7,8 +7,10 @@ import { signOut } from "@/app/login/actions";
 const navItems = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/bookings", label: "Bookings", icon: CalendarIcon },
+  { href: "/rooms", label: "Rooms", icon: RoomsIcon },
   { href: "/artists", label: "Artists", icon: UsersIcon },
   { href: "/projects", label: "Projects", icon: FolderIcon },
+  { href: "/invoices", label: "Invoices", icon: InvoiceIcon },
   { href: "/audio-analysis", label: "Audio Analysis", icon: WaveformIcon },
   { href: "/analytics", label: "Analytics", icon: ChartIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
@@ -59,10 +61,21 @@ export default function Sidebar() {
             );
           })}
         </ul>
+
+        {/* Client Portal Link */}
+        <div className="mt-6 pt-4 border-t border-border-subtle">
+          <Link
+            href="/customer"
+            className="flex items-center justify-between rounded-lg border border-accent-600/30 bg-accent-600/10 px-3 py-2 text-xs font-semibold text-accent-400 hover:bg-accent-600/20 transition-all"
+          >
+            <span>Client Portal</span>
+            <span className="text-[10px] text-accent-300">Preview →</span>
+          </Link>
+        </div>
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border-subtle p-4 space-y-3">
+      <div className="border-t border-border-subtle p-4">
         <form action={signOut}>
           <button
             type="submit"
@@ -72,10 +85,6 @@ export default function Sidebar() {
             Sign Out
           </button>
         </form>
-        <div className="glass-card rounded-lg p-3">
-          <p className="text-xs text-text-tertiary">Demo Mode</p>
-          <p className="mt-0.5 text-[10px] text-text-muted">All data is fictional</p>
-        </div>
       </div>
     </aside>
   );
@@ -109,6 +118,23 @@ function CalendarIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="4" width="18" height="18" rx="2" />
       <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+    </svg>
+  );
+}
+
+function RoomsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4" />
+    </svg>
+  );
+}
+
+function InvoiceIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16l3-1.5 3 1.5 3-1.5 3 1.5 3-1.5 3 1.5V4a2 2 0 0 0-2-2z" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
     </svg>
   );
 }

@@ -6,28 +6,37 @@ import {
   createArtistAction,
   updateArtistAction,
   deleteArtistAction,
+  approveAccessRequestAction,
+  rejectAccessRequestAction,
+  unlinkArtistProfileAction,
   type ArtistActionState,
 } from './actions'
 
 type ArtistRow = Database['public']['Tables']['artists']['Row']
+type AccessRequestRow = Database['public']['Tables']['studio_access_requests']['Row']
 
 interface ArtistClientViewProps {
   artists: ArtistRow[]
+  accessRequests?: AccessRequestRow[]
   isConfigured: boolean
   userRole?: UserRole
 }
 
 export default function ArtistClientView({
   artists,
+  accessRequests = [],
   isConfigured,
   userRole,
 }: ArtistClientViewProps) {
+  const [activeTab, setActiveTab] = useState<'roster' | 'requests'>('roster')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingArtist, setEditingArtist] = useState<ArtistRow | null>(null)
   const [formState, setFormState] = useState<ArtistActionState>({})
   const [isPending, startTransition] = useTransition()
 
   const isStaff = userRole === 'owner' || userRole === 'admin' || userRole === 'engineer'
+  const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin'
+  const pendingRequests = accessRequests.filter((r) => r.status === 'pending')
 
   const openCreateModal = () => {
     setEditingArtist(null)
@@ -75,6 +84,35 @@ export default function ArtistClientView({
     })
   }
 
+  const handleApproveRequest = (requestId: string, targetArtistId?: string) => {
+    startTransition(async () => {
+      const res = await approveAccessRequestAction(requestId, targetArtistId)
+      if (res.error) {
+        alert(res.error)
+      }
+    })
+  }
+
+  const handleRejectRequest = (requestId: string) => {
+    if (!confirm('Are you sure you want to decline this artist access request?')) return
+    startTransition(async () => {
+      const res = await rejectAccessRequestAction(requestId)
+      if (res.error) {
+        alert(res.error)
+      }
+    })
+  }
+
+  const handleUnlinkProfile = (artistId: string, artistName: string) => {
+    if (!confirm(`Unlink client portal account from artist "${artistName}"? The client will no longer have portal access.`)) return
+    startTransition(async () => {
+      const res = await unlinkArtistProfileAction(artistId)
+      if (res.error) {
+        alert(res.error)
+      }
+    })
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
@@ -108,34 +146,142 @@ export default function ArtistClientView({
         </div>
       )}
 
-      {/* Summary KPI Cards */}
-      <div className="stagger-children mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="glass-card rounded-xl p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-text-tertiary">Total Artists</p>
-          <p className="mt-2 text-2xl font-bold text-text-primary">{artists.length}</p>
-          <p className="mt-1 text-xs text-text-muted">
-            {artists.filter((a) => a.status === 'active').length} active ·{' '}
-            {artists.filter((a) => a.status === 'new').length} new
-          </p>
+      {/* Summary KPI Cards & Tabs */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border-subtle pb-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('roster')}
+            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+              activeTab === 'roster'
+                ? 'bg-accent-600/15 text-accent-400 border border-accent-600/30'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+            }`}
+          >
+            Artist Roster ({artists.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`relative rounded-lg px-4 py-2 text-xs font-semibold transition-all flex items-center gap-2 ${
+              activeTab === 'requests'
+                ? 'bg-accent-600/15 text-accent-400 border border-accent-600/30'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+            }`}
+          >
+            Access Requests
+            {pendingRequests.length > 0 && (
+              <span className="rounded-full bg-accent-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
+                {pendingRequests.length}
+              </span>
+            )}
+          </button>
         </div>
-        <div className="glass-card rounded-xl p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-text-tertiary">Active Roster</p>
-          <p className="mt-2 text-2xl font-bold text-status-success">
-            {artists.filter((a) => a.status === 'active').length}
-          </p>
-          <p className="mt-1 text-xs text-text-muted">Currently active clients</p>
-        </div>
-        <div className="glass-card rounded-xl p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-text-tertiary">New Inquiries</p>
-          <p className="mt-2 text-2xl font-bold text-accent-400">
-            {artists.filter((a) => a.status === 'new').length}
-          </p>
-          <p className="mt-1 text-xs text-text-muted">Onboarding / pending</p>
+
+        <div className="flex gap-4 text-xs text-text-muted">
+          <span><strong className="text-status-success">{artists.filter((a) => a.status === 'active').length}</strong> Active</span>
+          <span><strong className="text-accent-400">{pendingRequests.length}</strong> Pending Requests</span>
+          <span><strong className="text-text-primary">{artists.filter((a) => a.profile_id).length}</strong> Portal Accounts</span>
         </div>
       </div>
 
-      {/* Empty State */}
-      {artists.length === 0 ? (
+      {activeTab === 'requests' ? (
+        /* Access Requests List */
+        <div className="space-y-4">
+          {accessRequests.length === 0 ? (
+            <div className="glass-card rounded-2xl border border-dashed border-border-default p-12 text-center">
+              <h3 className="text-base font-semibold text-text-primary">No Access Requests</h3>
+              <p className="mx-auto mt-1 max-w-sm text-xs text-text-muted">
+                When new artists register publicly through the registration portal, their pending access requests will appear here for review and account linking.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {accessRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="glass-card rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-border-subtle"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-text-primary">
+                        {req.requested_artist_name}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                          req.status === 'pending'
+                            ? 'bg-status-warning/15 text-status-warning border border-status-warning/30'
+                            : req.status === 'approved'
+                            ? 'bg-status-success/15 text-status-success border border-status-success/30'
+                            : 'bg-status-error/15 text-status-error border border-status-error/30'
+                        }`}
+                      >
+                        {req.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+                      {req.genre && <span>Genre: <strong className="text-text-secondary">{req.genre}</strong></span>}
+                      {req.phone && <span>Phone: <strong className="text-text-secondary">{req.phone}</strong></span>}
+                      <span>Submitted: {new Date(req.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    </div>
+                    {req.notes && (
+                      <p className="text-xs text-text-secondary italic mt-1 bg-bg-surface p-2 rounded border border-border-subtle">
+                        &ldquo;{req.notes}&rdquo;
+                      </p>
+                    )}
+                  </div>
+
+                  {req.status === 'pending' && isOwnerOrAdmin && (
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleApproveRequest(req.id)}
+                        disabled={isPending}
+                        className="rounded-lg bg-accent-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-accent-700 transition-colors disabled:opacity-50"
+                      >
+                        Approve & Create Artist
+                      </button>
+
+                      {artists.filter((a) => !a.profile_id).length > 0 && (
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleApproveRequest(req.id, e.target.value)
+                            }
+                          }}
+                          disabled={isPending}
+                          className="rounded-lg border border-border-default bg-bg-surface px-2.5 py-1.5 text-xs text-text-secondary focus:border-accent-500 focus:outline-none"
+                        >
+                          <option value="" disabled>Link to Existing Artist...</option>
+                          {artists
+                            .filter((a) => !a.profile_id)
+                            .map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name} ({a.genre || 'General'})
+                              </option>
+                            ))}
+                        </select>
+                      )}
+
+                      <button
+                        onClick={() => handleRejectRequest(req.id)}
+                        disabled={isPending}
+                        className="rounded-lg border border-status-error/30 bg-status-error/10 px-3 py-1.5 text-xs font-medium text-status-error hover:bg-status-error/20 transition-colors disabled:opacity-50"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  )}
+
+                  {req.status !== 'pending' && (
+                    <span className="text-xs text-text-muted">
+                      Resolved {req.reviewed_at ? new Date(req.reviewed_at).toLocaleDateString('en-IN') : ''}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : artists.length === 0 ? (
         <div className="glass-card rounded-2xl border border-dashed border-border-default p-12 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-600/10 text-accent-400">
             <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
@@ -179,17 +325,26 @@ export default function ArtistClientView({
                       <p className="text-xs text-text-secondary">{artist.genre || 'General'}</p>
                     </div>
                   </div>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      artist.status === 'active'
-                        ? 'bg-status-success/10 text-status-success'
-                        : artist.status === 'new'
-                        ? 'bg-accent-500/10 text-accent-400'
-                        : 'bg-text-muted/10 text-text-muted'
-                    }`}
-                  >
-                    {artist.status || 'new'}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        artist.status === 'active'
+                          ? 'bg-status-success/10 text-status-success'
+                          : artist.status === 'new'
+                          ? 'bg-accent-500/10 text-accent-400'
+                          : 'bg-text-muted/10 text-text-muted'
+                      }`}
+                    >
+                      {artist.status || 'new'}
+                    </span>
+                    {artist.profile_id ? (
+                      <span className="rounded-full bg-accent-600/20 border border-accent-600/30 px-2 py-0.5 text-[9px] font-semibold text-accent-400 uppercase tracking-wider">
+                        Portal Linked
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-text-muted">Standard</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-4 space-y-1.5 text-xs text-text-muted">
@@ -214,19 +369,31 @@ export default function ArtistClientView({
               </div>
 
               {isStaff && isConfigured && (
-                <div className="mt-4 flex items-center justify-end gap-2 border-t border-border-subtle pt-3">
-                  <button
-                    onClick={() => openEditModal(artist)}
-                    className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 rounded transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(artist.id, artist.name)}
-                    className="text-xs text-status-error/80 hover:text-status-error px-2 py-1 rounded transition-colors"
-                  >
-                    Delete
-                  </button>
+                <div className="mt-4 flex items-center justify-between border-t border-border-subtle pt-3">
+                  <div>
+                    {artist.profile_id && isOwnerOrAdmin && (
+                      <button
+                        onClick={() => handleUnlinkProfile(artist.id, artist.name)}
+                        className="text-[11px] text-status-warning hover:text-status-warning/80 underline decoration-dotted transition-colors"
+                      >
+                        Unlink Portal
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(artist)}
+                      className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 rounded transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(artist.id, artist.name)}
+                      className="text-xs text-status-error/80 hover:text-status-error px-2 py-1 rounded transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -237,7 +404,7 @@ export default function ArtistClientView({
       {/* Modal Dialog */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="glass-card w-full max-w-md rounded-2xl border border-border-default bg-[#161616] p-6 shadow-2xl">
+          <div className="glass-card w-full max-w-md rounded-2xl border border-border-default bg-bg-secondary p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-lg font-bold text-text-primary">
                 {editingArtist ? 'Edit Artist Record' : 'Add New Artist'}

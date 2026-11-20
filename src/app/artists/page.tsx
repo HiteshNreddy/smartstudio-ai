@@ -5,6 +5,7 @@ import type { Database } from '@/lib/supabase/database.types'
 import ArtistClientView from './artist-client-view'
 
 type ArtistRow = Database['public']['Tables']['artists']['Row']
+type AccessRequestRow = Database['public']['Tables']['studio_access_requests']['Row']
 
 export const metadata = {
   title: 'Artists & CRM — SmartStudio AI',
@@ -15,7 +16,7 @@ export default async function ArtistsPage() {
   const configured = isSupabaseConfigured()
 
   if (!configured) {
-    return <ArtistClientView artists={[]} isConfigured={false} />
+    return <ArtistClientView artists={[]} accessRequests={[]} isConfigured={false} />
   }
 
   const user = await getAuthenticatedUser()
@@ -29,15 +30,25 @@ export default async function ArtistsPage() {
   }
 
   const supabase = await createServerSupabaseClient()
-  const { data: artists } = await supabase
-    .from('artists')
-    .select('*')
-    .eq('studio_id', activeStudio.studio.id)
-    .order('created_at', { ascending: false })
+  const studioId = activeStudio.studio.id
+
+  const [artistsRes, requestsRes] = await Promise.all([
+    supabase
+      .from('artists')
+      .select('*')
+      .eq('studio_id', studioId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('studio_access_requests')
+      .select('*')
+      .eq('studio_id', studioId)
+      .order('created_at', { ascending: false }),
+  ])
 
   return (
     <ArtistClientView
-      artists={(artists as ArtistRow[]) || []}
+      artists={(artistsRes.data as ArtistRow[]) || []}
+      accessRequests={(requestsRes.data as AccessRequestRow[]) || []}
       isConfigured={true}
       userRole={activeStudio.role}
     />

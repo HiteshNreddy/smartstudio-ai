@@ -7,10 +7,12 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const isAuthPage =
     pathname === "/login" ||
+    pathname === "/register" ||
     pathname?.startsWith("/auth") ||
     pathname === "/onboarding" ||
     pathname === "/forgot-password" ||
-    pathname === "/reset-password";
+    pathname === "/reset-password" ||
+    pathname?.startsWith("/customer");
 
   if (isAuthPage) {
     return <main className="min-h-screen">{children}</main>;

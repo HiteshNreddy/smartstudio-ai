@@ -83,6 +83,11 @@ export default async function DashboardPage() {
     redirect('/onboarding')
   }
 
+  // Redirect clients/artists directly to their dedicated customer portal
+  if (activeStudio.role === 'artist') {
+    redirect('/customer')
+  }
+
   const studioId = activeStudio.studio.id
   const supabase = await createServerSupabaseClient()
 

@@ -14,7 +14,8 @@ export type ProjectStatus =
   | "mastering"
   | "delivered"
   | "on-hold";
-export type InvoiceStatus = "draft" | "paid" | "refunded" | "cancelled";
+export type InvoiceStatus = "unpaid" | "paid" | "refunded" | "cancelled";
+export type AccessRequestStatus = "pending" | "approved" | "rejected" | "revoked";
 
 export interface Database {
   public: {
@@ -246,12 +247,11 @@ export interface Database {
           id: string;
           studio_id: string;
           booking_id: string | null;
+          booking_studio_id: string | null;
           artist_id: string;
-          amount_cents: number;
-          status: InvoiceStatus;
+          amount: number;
+          status: 'unpaid' | 'paid' | 'refunded' | 'cancelled';
           due_date: string | null;
-          paid_at: string | null;
-          stripe_payment_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -259,12 +259,11 @@ export interface Database {
           id?: string;
           studio_id: string;
           booking_id?: string | null;
+          booking_studio_id?: string | null;
           artist_id: string;
-          amount_cents: number;
-          status?: InvoiceStatus;
+          amount: number;
+          status?: 'unpaid' | 'paid' | 'refunded' | 'cancelled';
           due_date?: string | null;
-          paid_at?: string | null;
-          stripe_payment_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -272,12 +271,59 @@ export interface Database {
           id?: string;
           studio_id?: string;
           booking_id?: string | null;
+          booking_studio_id?: string | null;
           artist_id?: string;
-          amount_cents?: number;
-          status?: InvoiceStatus;
+          amount?: number;
+          status?: 'unpaid' | 'paid' | 'refunded' | 'cancelled';
           due_date?: string | null;
-          paid_at?: string | null;
-          stripe_payment_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      studio_access_requests: {
+        Row: {
+          id: string;
+          studio_id: string;
+          user_id: string;
+          artist_id: string | null;
+          requested_artist_name: string;
+          genre: string | null;
+          phone: string | null;
+          status: AccessRequestStatus;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          studio_id: string;
+          user_id: string;
+          artist_id?: string | null;
+          requested_artist_name: string;
+          genre?: string | null;
+          phone?: string | null;
+          status?: AccessRequestStatus;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          studio_id?: string;
+          user_id?: string;
+          artist_id?: string | null;
+          requested_artist_name?: string;
+          genre?: string | null;
+          phone?: string | null;
+          status?: AccessRequestStatus;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -138,12 +138,20 @@ export default async function SettingsPage() {
                 Configured physical recording spaces for session booking.
               </p>
             </div>
-            <Link
-              href="/bookings"
-              className="text-xs font-medium text-accent-400 hover:text-accent-300"
-            >
-              View in Bookings →
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/rooms"
+                className="text-xs font-semibold text-accent-400 hover:text-accent-300"
+              >
+                Manage Rooms →
+              </Link>
+              <Link
+                href="/bookings"
+                className="text-xs font-medium text-text-secondary hover:text-text-primary"
+              >
+                Bookings
+              </Link>
+            </div>
           </div>
 
           <div className="mt-5 space-y-3">

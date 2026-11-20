@@ -16,6 +16,7 @@ export interface BookingActionState {
 }
 
 const STAFF_ROLES = ['owner' as const, 'admin' as const, 'engineer' as const]
+const ROOM_MANAGEMENT_ROLES = ['owner' as const, 'admin' as const]
 
 const VALID_BOOKING_STATUSES: BookingStatus[] = [
   'pending',
@@ -180,5 +181,84 @@ export async function deleteBookingAction(bookingId: string): Promise<BookingAct
     return { success: true }
   } catch (err: unknown) {
     return { error: err instanceof Error ? err.message : 'Failed to delete booking.' }
+  }
+}
+
+/**
+ * Explicitly provisions default studio rooms for a newly initialized studio.
+ *
+ * Authorization:
+ * - Requires authenticated user session.
+ * - Restricts action to studio owners and admins via assertStudioRole.
+ * - Never trusts a client-supplied studio ID; resolves studio identity strictly server-side.
+ *
+ * Duplicate Protection Note:
+ * - Performs a pre-flight SELECT check to prevent duplicate provisioning under normal sequential flow.
+ * - LIMITATION: In the absence of a database-level uniqueness constraint (e.g. UNIQUE(studio_id, name))
+ *   or serializable transaction isolation, concurrent requests can still race if submitted simultaneously.
+ */
+export async function provisionDefaultRoomsAction(): Promise<BookingActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: 'Database is not configured. Supply credentials in .env.local.' }
+  }
+
+  try {
+    await requireAuthenticatedUser()
+    const activeStudio = await getActiveStudio()
+    if (!activeStudio) {
+      return { error: 'No active studio found.' }
+    }
+
+    // Restrict action to authorized studio owners and admins only
+    await assertStudioRole(activeStudio.studio.id, ROOM_MANAGEMENT_ROLES)
+
+    const supabase = await createServerSupabaseClient()
+
+    // Pre-flight check: sequential duplicate protection
+    const { data: existingRooms, error: checkError } = await supabase
+      .from('rooms')
+      .select('id, name')
+      .eq('studio_id', activeStudio.studio.id)
+
+    if (checkError) {
+      return { error: checkError.message }
+    }
+
+    if (existingRooms && existingRooms.length > 0) {
+      return { error: 'Studio already has registered rooms. Provisioning aborted.' }
+    }
+
+    const defaultRooms = [
+      {
+        studio_id: activeStudio.studio.id,
+        name: 'Studio A (Main Live Room)',
+        description: 'Full tracking space with SSL console',
+        hourly_rate: 150,
+      },
+      {
+        studio_id: activeStudio.studio.id,
+        name: 'Studio B (Mix Suite)',
+        description: 'Surround mixing & mastering suite',
+        hourly_rate: 100,
+      },
+      {
+        studio_id: activeStudio.studio.id,
+        name: 'Vocal Booth',
+        description: 'Treated vocal & VO isolation booth',
+        hourly_rate: 65,
+      },
+    ]
+
+    const { error: insertError } = await supabase.from('rooms').insert(defaultRooms)
+
+    if (insertError) {
+      return { error: insertError.message }
+    }
+
+    revalidatePath('/bookings')
+    revalidatePath('/')
+    return { success: true }
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : 'Failed to provision default rooms.' }
   }
 }

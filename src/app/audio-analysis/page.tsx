@@ -14,7 +14,7 @@ function AudioAnalysisSkeleton() {
         <div className="h-7 w-48 bg-white/10 rounded" />
         <div className="h-4 w-72 bg-white/5 rounded" />
       </div>
-      <div className="h-40 w-full bg-[#161616] border border-white/10 rounded-2xl" />
+      <div className="h-40 w-full bg-bg-secondary border border-border-default rounded-2xl" />
     </div>
   )
 }
@@ -22,10 +22,11 @@ function AudioAnalysisSkeleton() {
 async function AudioAnalysisContent() {
   let studioName = 'Muzico Studio'
   let userRole = 'engineer'
+  let activeStudio = null
 
   if (isSupabaseConfigured()) {
     try {
-      const activeStudio = await getActiveStudio()
+      activeStudio = await getActiveStudio()
       if (activeStudio) {
         studioName = activeStudio.studio.name
         userRole = activeStudio.role
@@ -35,7 +36,13 @@ async function AudioAnalysisContent() {
     }
   }
 
-  return <AudioAnalysisClientView studioName={studioName} userRole={userRole} />
+  return (
+    <AudioAnalysisClientView
+      studioId={activeStudio?.studio.id}
+      studioName={studioName}
+      userRole={userRole}
+    />
+  )
 }
 
 export default function AudioAnalysisPage() {

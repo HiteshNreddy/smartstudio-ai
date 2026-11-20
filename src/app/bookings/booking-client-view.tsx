@@ -6,8 +6,10 @@ import {
   createBookingAction,
   updateBookingStatusAction,
   deleteBookingAction,
+  provisionDefaultRoomsAction,
   type BookingActionState,
 } from './actions'
+import { calculateEstimatedBookingCost, formatCurrencyINR } from './pricing'
 
 type BookingRow = Database['public']['Tables']['bookings']['Row']
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -34,19 +36,47 @@ export default function BookingClientView({
   userRole,
 }: BookingClientViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('')
+  const [selectedDuration, setSelectedDuration] = useState<number>(2)
   const [formState, setFormState] = useState<BookingActionState>({})
+  const [provisionFeedback, setProvisionFeedback] = useState<{ error?: string; success?: string } | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const isStaff = userRole === 'owner' || userRole === 'admin' || userRole === 'engineer'
+  const canProvisionRooms = (userRole === 'owner' || userRole === 'admin') && isConfigured
+
+  const selectedRoom = rooms.find((r) => r.id === selectedRoomId)
+  const estimatedCost = calculateEstimatedBookingCost(
+    selectedRoom?.hourly_rate,
+    selectedDuration
+  )
+
+  const handleProvisionRooms = () => {
+    setProvisionFeedback(null)
+    startTransition(async () => {
+      const res = await provisionDefaultRoomsAction()
+      if (res.error) {
+        setProvisionFeedback({ error: res.error })
+      } else {
+        setProvisionFeedback({
+          success: 'Default studio rooms (Studio A, Studio B, Vocal Booth) provisioned successfully.',
+        })
+      }
+    })
+  }
 
   const openModal = () => {
     setFormState({})
+    setSelectedRoomId('')
+    setSelectedDuration(2)
     setIsModalOpen(true)
   }
 
   const closeModal = () => {
     setIsModalOpen(false)
     setFormState({})
+    setSelectedRoomId('')
+    setSelectedDuration(2)
   }
 
   const handleSubmit = (formData: FormData) => {
@@ -114,6 +144,20 @@ export default function BookingClientView({
         </div>
       )}
 
+      {/* Feedback Alerts */}
+      {provisionFeedback?.error && (
+        <div className="mb-6 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-xs text-status-error flex items-center justify-between gap-3 animate-fade-in">
+          <p>{provisionFeedback.error}</p>
+          <button onClick={() => setProvisionFeedback(null)} className="text-status-error/70 hover:text-status-error">✕</button>
+        </div>
+      )}
+      {provisionFeedback?.success && (
+        <div className="mb-6 rounded-xl border border-status-success/30 bg-status-success/10 p-4 text-xs text-status-success flex items-center justify-between gap-3 animate-fade-in">
+          <p>{provisionFeedback.success}</p>
+          <button onClick={() => setProvisionFeedback(null)} className="text-status-success/70 hover:text-status-success">✕</button>
+        </div>
+      )}
+
       {/* KPI Stats */}
       <div className="stagger-children mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="glass-card rounded-xl p-5">
@@ -151,10 +195,35 @@ export default function BookingClientView({
           </div>
           <h3 className="text-lg font-semibold text-text-primary">No sessions booked yet</h3>
           <p className="mx-auto mt-1 max-w-sm text-xs text-text-muted">
-            {artists.length === 0
+            {rooms.length === 0
+              ? 'To schedule a booking, studio rooms must be registered first.'
+              : artists.length === 0
               ? 'To schedule a booking, add at least one artist in the Artists section first.'
               : 'Create a room booking to schedule studio recording, mixing, or rehearsal time.'}
           </p>
+
+          {rooms.length === 0 && (
+            <div className="mt-5 rounded-xl border border-border-default bg-bg-surface/60 p-4 max-w-md mx-auto text-left">
+              <p className="text-xs font-semibold text-text-primary">Studio Rooms Not Yet Initialized</p>
+              <p className="mt-1 text-[11px] text-text-secondary leading-relaxed">
+                Before sessions can be booked, recording rooms must be registered. You can initialize standard defaults (Studio A, Studio B, Vocal Booth).
+              </p>
+              {canProvisionRooms ? (
+                <button
+                  type="button"
+                  onClick={handleProvisionRooms}
+                  disabled={isPending}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-accent-500/40 bg-accent-600/15 px-3.5 py-2 text-xs font-medium text-accent-300 transition-all hover:bg-accent-600/25 disabled:opacity-50"
+                >
+                  {isPending ? 'Provisioning Rooms...' : '⚡ Provision Default Studio Rooms'}
+                </button>
+              ) : (
+                <p className="mt-2 text-[11px] text-text-muted italic">
+                  Contact a studio owner or admin to provision rooms.
+                </p>
+              )}
+            </div>
+          )}
           {isStaff && isConfigured && (
             <button
               onClick={openModal}
@@ -261,7 +330,7 @@ export default function BookingClientView({
       {/* Booking Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="glass-card w-full max-w-md rounded-2xl border border-border-default bg-[#161616] p-6 shadow-2xl">
+          <div className="glass-card w-full max-w-md rounded-2xl border border-border-default bg-bg-secondary p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-lg font-bold text-text-primary">Create Studio Booking</h2>
               <button onClick={closeModal} className="text-text-muted hover:text-text-primary">
@@ -290,15 +359,25 @@ export default function BookingClientView({
                 <select
                   name="room_id"
                   required
-                  className="w-full rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent-600 focus:outline-none"
+                  value={selectedRoomId}
+                  onChange={(e) => setSelectedRoomId(e.target.value)}
+                  disabled={rooms.length === 0}
+                  className="w-full rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent-600 focus:outline-none disabled:opacity-50"
                 >
-                  <option value="">Select a room...</option>
+                  <option value="">
+                    {rooms.length === 0 ? 'No rooms available — provision rooms first' : 'Select a room...'}
+                  </option>
                   {rooms.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name} {r.hourly_rate ? `(₹${r.hourly_rate}/hr)` : ''}
                     </option>
                   ))}
                 </select>
+                {rooms.length === 0 && (
+                  <p className="mt-1 text-[11px] text-status-warning">
+                    No studio rooms available. Studio owners or admins can provision default rooms from the empty state.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -358,13 +437,15 @@ export default function BookingClientView({
                   </label>
                   <select
                     name="duration"
-                    defaultValue="2"
+                    value={selectedDuration}
+                    onChange={(e) => setSelectedDuration(parseFloat(e.target.value) || 2)}
                     className="w-full rounded-lg border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent-600 focus:outline-none"
                   >
                     <option value="1">1 hour</option>
                     <option value="2">2 hours</option>
                     <option value="3">3 hours</option>
                     <option value="4">4 hours</option>
+                    <option value="6">6 hours</option>
                     <option value="8">8 hours (Full day)</option>
                   </select>
                 </div>
@@ -379,6 +460,53 @@ export default function BookingClientView({
                     <option value="confirmed">Confirmed</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Dynamic Estimated Session Cost */}
+              <div className="rounded-xl border border-border-default bg-bg-surface/70 p-4 transition-all">
+                <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+                    Estimated Session Cost
+                  </span>
+                  {selectedRoom && estimatedCost !== null && (
+                    <span className="text-[10px] font-medium text-accent-400 bg-accent-500/10 border border-accent-500/20 px-2 py-0.5 rounded-full">
+                      Live Estimate
+                    </span>
+                  )}
+                </div>
+
+                {selectedRoom && estimatedCost !== null ? (
+                  <div className="mt-3 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-text-secondary">
+                      <span>Room:</span>
+                      <span className="font-medium text-text-primary">{selectedRoom.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-text-secondary">
+                      <span>Rate:</span>
+                      <span className="font-medium text-text-primary">
+                        {formatCurrencyINR(Number(selectedRoom.hourly_rate))}/hour
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-text-secondary">
+                      <span>Duration:</span>
+                      <span className="font-medium text-text-primary">
+                        {selectedDuration} {selectedDuration === 1 ? 'hour' : 'hours'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-border-subtle">
+                      <span className="font-semibold text-text-primary">Estimated Total:</span>
+                      <span className="text-base font-bold text-accent-400">
+                        {formatCurrencyINR(estimatedCost)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2.5 py-1 text-center text-xs text-text-muted italic">
+                    {rooms.length === 0
+                      ? 'No studio rooms available to estimate cost.'
+                      : 'Select a studio room and duration above to calculate estimated cost.'}
+                  </div>
+                )}
               </div>
 
               <div>

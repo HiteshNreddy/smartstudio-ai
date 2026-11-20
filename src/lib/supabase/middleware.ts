@@ -43,6 +43,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isAuthRoute =
     pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password')
@@ -61,7 +62,7 @@ export async function updateSession(request: NextRequest) {
 
   // Authenticated user attempting to access login or forgot-password page
   // (Do not redirect /reset-password because recovery session lands there to set a new password)
-  if (user && (pathname.startsWith('/login') || pathname.startsWith('/forgot-password'))) {
+  if (user && (pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password'))) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     const redirectResponse = NextResponse.redirect(url)

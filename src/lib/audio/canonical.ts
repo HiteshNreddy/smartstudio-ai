@@ -14,9 +14,9 @@ export function computeCanonicalRatio(count: number, total: number): string {
 
   const c = BigInt(count);
   const totalBig = BigInt(total);
-  const scaled = (c * 2_000_000n + totalBig) / (totalBig * 2n);
-  const intPart = scaled / 1_000_000n;
-  const fracPart = scaled % 1_000_000n;
+  const scaled = (c * BigInt(2_000_000) + totalBig) / (totalBig * BigInt(2));
+  const intPart = scaled / BigInt(1_000_000);
+  const fracPart = scaled % BigInt(1_000_000);
   return `${intPart}.${fracPart.toString().padStart(6, '0')}`;
 }
 

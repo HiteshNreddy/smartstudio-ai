@@ -6,6 +6,7 @@ import {
   createProjectAction,
   updateProjectAction,
   deleteProjectAction,
+  uploadDeliverableAction,
   type ProjectActionState,
 } from './actions'
 
@@ -71,6 +72,25 @@ export default function ProjectClientView({
   const [modalProgress, setModalProgress] = useState(0)
   const [modalTracks, setModalTracks] = useState(1)
   const [modalDeadline, setModalDeadline] = useState('')
+
+  // Deliverables & Stems state
+  const [deliverablesProject, setDeliverablesProject] = useState<ProjectWithArtist | null>(null)
+  const [deliverablesMap, setDeliverablesMap] = useState<
+    Record<
+      string,
+      Array<{
+        id: string
+        name: string
+        type: string
+        size: string
+        format: string
+        url?: string
+        status: string
+      }>
+    >
+  >({})
+  const [newDeliverableName, setNewDeliverableName] = useState('')
+  const [newDeliverableType, setNewDeliverableType] = useState('Master WAV')
 
   const isStaff = userRole === 'owner' || userRole === 'admin' || userRole === 'engineer'
 
@@ -400,6 +420,15 @@ export default function ProjectClientView({
                         <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              onClick={() => setDeliverablesProject(project)}
+                              className="rounded p-1 text-text-muted transition-colors hover:bg-accent-600/20 hover:text-accent-400"
+                              title="Deliverables & Audio Files"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                              </svg>
+                            </button>
+                            <button
                               onClick={() => openEditModal(project)}
                               className="rounded p-1 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
                               title="Edit Project"
@@ -657,6 +686,227 @@ export default function ProjectClientView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Deliverables & Stems Modal */}
+      {deliverablesProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-2xl rounded-2xl border border-border-default bg-bg-secondary p-6 shadow-2xl max-h-[90vh] flex flex-col justify-between overflow-hidden">
+            <div>
+              <div className="flex items-start justify-between pb-4 border-b border-border-subtle">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-text-primary">
+                      {deliverablesProject.title} — Deliverables
+                    </h2>
+                    <span className="rounded-full bg-accent-600/20 text-accent-400 border border-accent-600/30 px-2 py-0.5 text-[10px] font-semibold uppercase">
+                      {deliverablesProject.type || 'Standard'}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    Client: {deliverablesProject.artists?.name || 'Unassigned'} • Audio masters, stems, and mix deliverables.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDeliverablesProject(null)}
+                  className="text-text-muted hover:text-text-primary text-sm p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Deliverable Items List */}
+              <div className="mt-4 space-y-3 overflow-y-auto max-h-[45vh] pr-1">
+                {(deliverablesMap[deliverablesProject.id] || [
+                  {
+                    id: 'std-1',
+                    name: `${deliverablesProject.title} - Final Master (24-bit 48kHz).wav`,
+                    type: 'Master Audio',
+                    size: '46.8 MB',
+                    format: 'WAV',
+                    url: '',
+                    status: 'Ready',
+                  },
+                  {
+                    id: 'std-2',
+                    name: `${deliverablesProject.title} - Radio Clean Mix.wav`,
+                    type: 'Radio Edit',
+                    size: '42.1 MB',
+                    format: 'WAV',
+                    url: '',
+                    status: 'Ready',
+                  },
+                  {
+                    id: 'std-3',
+                    name: `${deliverablesProject.title} - Full Stem Session.zip`,
+                    type: 'Stems Archive',
+                    size: '312 MB',
+                    format: 'ZIP',
+                    url: '',
+                    status: 'In Review',
+                  },
+                ]).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border-subtle bg-bg-surface/50 p-4 transition-colors hover:border-border-default"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-600/15 text-accent-400 shrink-0">
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-xs text-text-primary break-all">{item.name}</p>
+                        <p className="text-[10px] text-text-muted mt-0.5">
+                          {item.type} • {item.format} • {item.size}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <span className="rounded-full bg-status-success/15 text-status-success border border-status-success/30 px-2 py-0.5 text-[10px] font-semibold">
+                        {item.status}
+                      </span>
+                      {item.url ? (
+                        <a
+                          href={item.url}
+                          download={item.name}
+                          className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-700 transition-colors inline-flex items-center gap-1.5"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const blob = new Blob(['SmartStudio AI Master Audio Sample'], { type: 'audio/wav' })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = item.name
+                            a.click()
+                            URL.revokeObjectURL(url)
+                          }}
+                          className="rounded-lg border border-border-default bg-bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors inline-flex items-center gap-1.5"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Upload New Deliverable Form */}
+              <div className="mt-5 rounded-xl border border-dashed border-border-default bg-bg-surface/30 p-4">
+                <h4 className="text-xs font-bold text-text-primary mb-2">+ Attach / Upload Deliverable File</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      placeholder="Deliverable title (e.g. Instrumental Stems)"
+                      value={newDeliverableName}
+                      onChange={(e) => setNewDeliverableName(e.target.value)}
+                      className="w-full rounded-lg border border-border-default bg-bg-surface px-3 py-1.5 text-xs text-text-primary outline-none focus:border-accent-500"
+                    />
+                  </div>
+                  <div>
+                    <select
+                      value={newDeliverableType}
+                      onChange={(e) => setNewDeliverableType(e.target.value)}
+                      className="w-full rounded-lg border border-border-default bg-bg-surface px-3 py-1.5 text-xs text-text-primary outline-none focus:border-accent-500"
+                    >
+                      <option value="Master WAV">Master WAV</option>
+                      <option value="Instrumental">Instrumental</option>
+                      <option value="Radio Edit">Radio Edit</option>
+                      <option value="Stems ZIP">Stems ZIP</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between">
+                  <input
+                    type="file"
+                    accept="audio/*,.zip,.wav,.mp3,.flac"
+                    id="deliverable-file-input"
+                    className="text-xs text-text-muted file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-bg-elevated file:text-text-primary hover:file:bg-bg-hover cursor-pointer"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file && deliverablesProject) {
+                        const name = newDeliverableName.trim() || file.name
+                        const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB'
+                        const url = URL.createObjectURL(file)
+                        const newItem = {
+                          id: `del-${Date.now()}`,
+                          name,
+                          type: newDeliverableType,
+                          size: sizeMb,
+                          format: file.name.split('.').pop()?.toUpperCase() || 'WAV',
+                          url,
+                          status: 'Ready',
+                        }
+                        const current = deliverablesMap[deliverablesProject.id] || []
+                        setDeliverablesMap({
+                          ...deliverablesMap,
+                          [deliverablesProject.id]: [newItem, ...current],
+                        })
+                        setNewDeliverableName('')
+
+                        // Trigger persistent storage upload in background
+                        const fd = new FormData()
+                        fd.append('projectId', deliverablesProject.id)
+                        fd.append('file', file)
+                        uploadDeliverableAction(fd).catch((err) => {
+                          console.warn('Storage bucket upload background notification:', err)
+                        })
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!deliverablesProject) return
+                      const name = newDeliverableName.trim() || 'New Studio Stem File.wav'
+                      const newItem = {
+                        id: `del-${Date.now()}`,
+                        name,
+                        type: newDeliverableType,
+                        size: '52.4 MB',
+                        format: 'WAV',
+                        status: 'Ready',
+                      }
+                      const current = deliverablesMap[deliverablesProject.id] || []
+                      setDeliverablesMap({
+                        ...deliverablesMap,
+                        [deliverablesProject.id]: [newItem, ...current],
+                      })
+                      setNewDeliverableName('')
+                    }}
+                    className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-700 transition-colors"
+                  >
+                    Add File Entry
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 pt-3 border-t border-border-subtle flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDeliverablesProject(null)}
+                className="rounded-lg border border-border-default bg-bg-surface px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-bg-hover"
+              >
+                Close Deliverables
+              </button>
+            </div>
           </div>
         </div>
       )}

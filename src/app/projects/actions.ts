@@ -273,3 +273,126 @@ export async function deleteProjectAction(
     return { error: message }
   }
 }
+
+export async function uploadDeliverableAction(
+  formData: FormData
+): Promise<{ error?: string; success?: string; filePath?: string }> {
+  if (!isSupabaseConfigured()) {
+    return { error: 'Database is not configured.' }
+  }
+
+  try {
+    await requireAuthenticatedUser()
+    const activeStudio = await getActiveStudio()
+    if (!activeStudio) {
+      return { error: 'No active studio membership found.' }
+    }
+
+    await assertStudioRole(activeStudio.studio.id, STAFF_ROLES)
+    const studioId = activeStudio.studio.id
+
+    const projectId = (formData.get('projectId') as string | null)?.trim()
+    const file = formData.get('file') as File | null
+
+    if (!projectId) {
+      return { error: 'Project ID is required.' }
+    }
+    if (!file || !(file instanceof File) || file.size === 0) {
+      return { error: 'A valid file is required.' }
+    }
+
+    const supabase = await createServerSupabaseClient()
+
+    // Verify project belongs to studio
+    const { data: project, error: projErr } = await supabase
+      .from('projects')
+      .select('id, title')
+      .eq('id', projectId)
+      .eq('studio_id', studioId)
+      .single()
+
+    if (projErr || !project) {
+      return { error: 'Project not found in current studio.' }
+    }
+
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${studioId}/${projectId}/${Date.now()}-${sanitizedName}`
+
+    const { error: uploadErr } = await supabase.storage
+      .from('project-deliverables')
+      .upload(filePath, file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      })
+
+    if (uploadErr) {
+      // If bucket doesn't exist yet, return helpful message
+      return { error: `Storage upload failed: ${uploadErr.message}` }
+    }
+
+    revalidatePath('/projects')
+    revalidatePath('/customer')
+    return { success: 'Deliverable uploaded successfully.', filePath }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred.'
+    return { error: message }
+  }
+}
+
+export async function getDeliverableSignedUrlAction(
+  filePath: string
+): Promise<{ error?: string; signedUrl?: string }> {
+  if (!isSupabaseConfigured()) {
+    return { error: 'Database is not configured.' }
+  }
+
+  try {
+    const user = await requireAuthenticatedUser()
+    const supabase = await createServerSupabaseClient()
+
+    // Authorization check: path structure is studioId/projectId/filename
+    const parts = filePath.split('/')
+    if (parts.length < 3) {
+      return { error: 'Invalid deliverable file path structure.' }
+    }
+    const [studioId, projectId] = parts
+
+    // Check 1: Is user staff for this studio?
+    const { data: membership } = await supabase
+      .from('studio_memberships')
+      .select('role')
+      .eq('studio_id', studioId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    const isStaff = membership && STAFF_ROLES.includes(membership.role as (typeof STAFF_ROLES)[number])
+
+    // Check 2: If not staff, is user the linked artist for this project?
+    if (!isStaff) {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('artist_id, artists(profile_id)')
+        .eq('id', projectId)
+        .eq('studio_id', studioId)
+        .maybeSingle()
+
+      const artistProfileId = (project as unknown as { artists?: { profile_id: string | null } | null })?.artists?.profile_id
+      if (artistProfileId !== user.id) {
+        return { error: 'Unauthorized: You do not have access to download this project deliverable.' }
+      }
+    }
+
+    const { data, error } = await supabase.storage
+      .from('project-deliverables')
+      .createSignedUrl(filePath, 3600) // 1 hour expiry
+
+    if (error || !data?.signedUrl) {
+      return { error: error?.message || 'Failed to generate download URL.' }
+    }
+
+    return { signedUrl: data.signedUrl }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred.'
+    return { error: message }
+  }
+}

@@ -1,112 +1,186 @@
-import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { isSupabaseConfigured, getActiveStudio, getAuthenticatedUser } from '@/lib/supabase/auth'
+import AnalyticsClientView, { type AnalyticsData } from './analytics-client-view'
 
 export const metadata = {
-  title: 'Analytics — SmartStudio AI',
-  description: 'Business analytics and revenue insights for the studio.',
+  title: 'Business Analytics — SmartStudio AI',
+  description: 'Studio performance, booking utilization, and financial intelligence.',
 }
 
-export default function AnalyticsPage() {
-  return (
-    <div className="animate-fade-in space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Business Analytics</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Revenue trends, studio utilization metrics, and financial reporting.
-        </p>
-      </div>
+interface AnalyticsPageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
 
-      {/* Notice Banner */}
-      <div className="rounded-xl border border-accent-500/30 bg-accent-600/10 p-5 text-text-primary">
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-accent-600/20 p-2 text-accent-400">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-text-primary">Analytics Engine: Feature Preview</h2>
-            <p className="mt-1 text-xs text-text-secondary leading-relaxed">
-              Business intelligence calculations require historical session records and paid invoice data.
-              Fabricated demo trends have been removed to preserve data integrity. Once your studio has logged ongoing sessions, genuine automated reporting will populate here.
-            </p>
-            <div className="mt-3 flex gap-3">
-              <Link
-                href="/bookings"
-                className="text-xs font-semibold text-accent-400 hover:text-accent-300"
-              >
-                Log Sessions in Bookings →
-              </Link>
-              <Link
-                href="/projects"
-                className="text-xs font-semibold text-accent-400 hover:text-accent-300"
-              >
-                Track Projects →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
+  const configured = isSupabaseConfigured()
 
-      {/* KPI Cards (Clean zero/awaiting state) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="glass-card rounded-xl p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-            Monthly Revenue
-          </p>
-          <p className="mt-2 text-2xl font-extrabold text-text-primary">₹0</p>
-          <p className="mt-1 text-xs text-text-muted">Awaiting invoice payments</p>
-        </div>
+  if (!configured) {
+    return (
+      <AnalyticsClientView
+        data={{
+          timeRange: '30d',
+          totalRevenue: 0,
+          pendingRevenue: 0,
+          totalInvoicesCount: 0,
+          paidInvoicesCount: 0,
+          totalSessions: 0,
+          completedSessions: 0,
+          confirmedSessions: 0,
+          totalBookedHours: 0,
+          utilizationRate: 0,
+          uniqueArtistsCount: 0,
+          repeatArtistRate: 0,
+          roomStats: [],
+          statusBreakdown: { completed: 0, confirmed: 0, pending: 0, cancelled: 0, in_progress: 0 },
+        }}
+        isConfigured={false}
+      />
+    )
+  }
 
-        <div className="glass-card rounded-xl p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-            Avg Room Utilization
-          </p>
-          <p className="mt-2 text-2xl font-extrabold text-text-primary">--%</p>
-          <p className="mt-1 text-xs text-text-muted">Calculated across 30 days</p>
-        </div>
+  const user = await getAuthenticatedUser()
+  if (!user) {
+    redirect('/login')
+  }
 
-        <div className="glass-card rounded-xl p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-            Completed Sessions
-          </p>
-          <p className="mt-2 text-2xl font-extrabold text-text-primary">0</p>
-          <p className="mt-1 text-xs text-text-muted">Sessions with completed status</p>
-        </div>
+  const activeStudio = await getActiveStudio()
+  if (!activeStudio) {
+    redirect('/onboarding')
+  }
 
-        <div className="glass-card rounded-xl p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-            Client Retention
-          </p>
-          <p className="mt-2 text-2xl font-extrabold text-text-primary">--%</p>
-          <p className="mt-1 text-xs text-text-muted">Repeat artists over 90 days</p>
-        </div>
-      </div>
+  const resolvedSearchParams = await searchParams
+  const rangeParam = typeof resolvedSearchParams?.range === 'string' ? resolvedSearchParams.range : '30d'
 
-      {/* Placeholder Chart Container */}
-      <div className="glass-card rounded-xl p-8 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-bg-elevated border border-border-subtle text-text-muted mb-4">
-          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-        </div>
-        <h3 className="text-base font-semibold text-text-primary">
-          Revenue & Utilization Graphs Unavailable
-        </h3>
-        <p className="mt-1 text-xs text-text-secondary max-w-md mx-auto">
-          Graphical analysis requires aggregate transactions over time. Once bookings and billing records accumulate, detailed time-series charts will be generated here automatically.
-        </p>
-      </div>
-    </div>
-  )
+  // Determine date boundary
+  let cutoffDate: Date | null = null
+  let daysInPeriod = 30
+  const now = new Date()
+
+  if (rangeParam === '7d') {
+    cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    daysInPeriod = 7
+  } else if (rangeParam === '30d') {
+    cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    daysInPeriod = 30
+  } else if (rangeParam === '90d') {
+    cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+    daysInPeriod = 90
+  } else {
+    daysInPeriod = 180 // For utilization calculation of 'all'
+  }
+
+  const supabase = await createServerSupabaseClient()
+  const studioId = activeStudio.studio.id
+
+  // Query Invoices, Bookings, Rooms
+  const [invoicesRes, bookingsRes, roomsRes] = await Promise.all([
+    supabase.from('invoices').select('*').eq('studio_id', studioId),
+    supabase.from('bookings').select('*').eq('studio_id', studioId),
+    supabase.from('rooms').select('*').eq('studio_id', studioId),
+  ])
+
+  const allInvoices = invoicesRes.data || []
+  const allBookings = bookingsRes.data || []
+  const rooms = roomsRes.data || []
+
+  // Filter by date cutoff if specified
+  const invoices = cutoffDate
+    ? allInvoices.filter((inv) => new Date(inv.created_at) >= cutoffDate!)
+    : allInvoices
+
+  const bookings = cutoffDate
+    ? allBookings.filter((b) => new Date(b.start_time) >= cutoffDate!)
+    : allBookings
+
+  // Revenue metrics
+  const totalRevenue = invoices
+    .filter((inv) => inv.status === 'paid')
+    .reduce((sum, inv) => sum + Number(inv.amount), 0)
+
+  const pendingRevenue = invoices
+    .filter((inv) => inv.status === 'unpaid')
+    .reduce((sum, inv) => sum + Number(inv.amount), 0)
+
+  const paidInvoicesCount = invoices.filter((inv) => inv.status === 'paid').length
+
+  // Booking & Session metrics
+  const statusBreakdown = {
+    completed: bookings.filter((b) => b.status === 'completed').length,
+    confirmed: bookings.filter((b) => b.status === 'confirmed').length,
+    pending: bookings.filter((b) => b.status === 'pending').length,
+    cancelled: bookings.filter((b) => b.status === 'cancelled').length,
+    in_progress: bookings.filter((b) => b.status === 'in_progress').length,
+  }
+
+  const totalSessions = bookings.length
+  const completedSessions = statusBreakdown.completed
+  const confirmedSessions = statusBreakdown.confirmed
+
+  // Calculate booked hours
+  let totalBookedHours = 0
+  for (const b of bookings) {
+    if (b.status !== 'cancelled') {
+      const start = new Date(b.start_time).getTime()
+      const end = new Date(b.end_time).getTime()
+      const durationHours = Math.max(0, (end - start) / (1000 * 60 * 60))
+      totalBookedHours += durationHours
+    }
+  }
+
+  // Room Utilization Rate (% of capacity assuming 10 hours/day operating time)
+  const roomCount = Math.max(1, rooms.length)
+  const theoreticalCapacityHours = roomCount * 10 * daysInPeriod
+  const utilizationRate = Math.min(100, (totalBookedHours / theoreticalCapacityHours) * 100)
+
+  // Client Retention
+  const artistBookingCounts = new Map<string, number>()
+  for (const b of bookings) {
+    if (b.artist_id) {
+      artistBookingCounts.set(b.artist_id, (artistBookingCounts.get(b.artist_id) || 0) + 1)
+    }
+  }
+  const uniqueArtistsCount = artistBookingCounts.size
+  const repeatArtistsCount = Array.from(artistBookingCounts.values()).filter((c) => c > 1).length
+  const repeatArtistRate = uniqueArtistsCount > 0 ? (repeatArtistsCount / uniqueArtistsCount) * 100 : 0
+
+  // Room-by-room breakdown
+  const roomStats = rooms.map((room) => {
+    const roomBookings = bookings.filter((b) => b.room_id === room.id && b.status !== 'cancelled')
+    let roomHours = 0
+    for (const b of roomBookings) {
+      const start = new Date(b.start_time).getTime()
+      const end = new Date(b.end_time).getTime()
+      roomHours += Math.max(0, (end - start) / (1000 * 60 * 60))
+    }
+    const estimatedYield = room.hourly_rate ? Math.round(roomHours * room.hourly_rate) : 0
+
+    return {
+      id: room.id,
+      name: room.name,
+      hourlyRate: room.hourly_rate,
+      sessionCount: roomBookings.length,
+      bookedHours: roomHours,
+      revenue: estimatedYield,
+    }
+  })
+
+  const analyticsData: AnalyticsData = {
+    timeRange: rangeParam,
+    totalRevenue,
+    pendingRevenue,
+    totalInvoicesCount: invoices.length,
+    paidInvoicesCount,
+    totalSessions,
+    completedSessions,
+    confirmedSessions,
+    totalBookedHours,
+    utilizationRate,
+    uniqueArtistsCount,
+    repeatArtistRate,
+    roomStats,
+    statusBreakdown,
+  }
+
+  return <AnalyticsClientView data={analyticsData} isConfigured={true} />
 }

@@ -38,28 +38,12 @@ export default async function BookingsPage() {
 
   const supabase = await createServerSupabaseClient()
 
-  // Fetch rooms for this studio
-  let { data: rooms } = await supabase
+  // Fetch rooms for this studio (strictly read-only query; no automatic provisioning)
+  const { data: rooms } = await supabase
     .from('rooms')
     .select('*')
     .eq('studio_id', activeStudio.studio.id)
     .order('name')
-
-  // If newly created studio has no rooms yet, provision initial default rooms for convenience
-  if ((!rooms || rooms.length === 0) && (activeStudio.role === 'owner' || activeStudio.role === 'admin')) {
-    const defaultRooms = [
-      { studio_id: activeStudio.studio.id, name: 'Studio A (Main Live Room)', description: 'Full tracking space with SSL console', hourly_rate: 150 },
-      { studio_id: activeStudio.studio.id, name: 'Studio B (Mix Suite)', description: 'Surround mixing & mastering suite', hourly_rate: 100 },
-      { studio_id: activeStudio.studio.id, name: 'Vocal Booth', description: 'Treated vocal & VO isolation booth', hourly_rate: 65 },
-    ]
-    await supabase.from('rooms').insert(defaultRooms)
-    const refetched = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('studio_id', activeStudio.studio.id)
-      .order('name')
-    rooms = refetched.data
-  }
 
   // Fetch artists for dropdown
   const { data: artists } = await supabase

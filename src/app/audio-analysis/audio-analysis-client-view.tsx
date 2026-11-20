@@ -11,9 +11,6 @@ import {
 } from '@/lib/audio/analysis'
 import {
   saveAudioAnalysisAction,
-  deleteAudioAnalysisAction,
-  listStudioAudioAnalysesAction,
-  type AudioAnalysisRow,
 } from './actions'
 
 interface AudioAnalysisClientViewProps {
@@ -23,7 +20,7 @@ interface AudioAnalysisClientViewProps {
 }
 
 export default function AudioAnalysisClientView({
-  studioId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  studioId,
   studioName = 'Muzico Studio',
   userRole = 'engineer',
 }: AudioAnalysisClientViewProps) {
@@ -176,6 +173,10 @@ export default function AudioAnalysisClientView({
 
   const handleSave = async () => {
     if (!analysisResult || !file) return
+    if (!studioId) {
+      setSaveError('No active studio found. Please join or create a studio before saving reports.')
+      return
+    }
     setIsSaving(true)
     setSaveError(null)
     setSaveSuccess(null)
@@ -242,7 +243,7 @@ export default function AudioAnalysisClientView({
         className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-500/50 ${
           isDragging
             ? 'border-accent-500 bg-accent-500/10'
-            : 'border-white/15 bg-[#161616] hover:border-accent-500/50 hover:bg-[#1a1a1a]'
+            : 'border-border-default bg-bg-secondary hover:border-accent-500/50 hover:bg-bg-elevated'
         } ${isDecoding ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
       >
         <input
@@ -396,7 +397,11 @@ export default function AudioAnalysisClientView({
             <div className="glass-card rounded-xl p-4 border border-accent-500/30 space-y-3 bg-bg-surface">
               <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider">Save Analysis Report</h4>
               <p className="text-xs text-text-muted">
-                Save audio diagnostics metadata to studio <strong>{studioName}</strong>. Raw audio is never uploaded.
+                {studioId ? (
+                  <>Save audio diagnostics metadata to studio <strong>{studioName}</strong>. Raw audio is never uploaded.</>
+                ) : (
+                  <span className="text-status-warning font-medium">No active studio found. Please join or create a studio before saving reports.</span>
+                )}
               </p>
               <div>
                 <label className="block text-[11px] font-medium text-text-secondary mb-1">
@@ -421,7 +426,7 @@ export default function AudioAnalysisClientView({
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isSaving}
+                  disabled={isSaving || !studioId}
                   className="rounded-lg bg-accent-600 px-4 py-1 text-xs font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
                 >
                   {isSaving ? 'Saving...' : 'Confirm Save'}
@@ -484,7 +489,7 @@ export default function AudioAnalysisClientView({
               </span>
             </div>
 
-            <div className="h-28 w-full rounded-lg bg-[#0e0e0e] border border-white/5 p-2 flex items-center">
+            <div className="h-28 w-full rounded-lg bg-bg-primary border border-border-default p-2 flex items-center">
               <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 120 100">
                 {analysisResult.waveformPeaks.map((peak, idx) => {
                   const barHeight = Math.max(3, peak * 90)
@@ -500,7 +505,7 @@ export default function AudioAnalysisClientView({
                       width={0.75}
                       height={barHeight}
                       rx={0.3}
-                      fill={isClipping ? '#ef4444' : isHigh ? '#f59e0b' : '#8b5cf6'}
+                      fill={isClipping ? '#D64040' : isHigh ? '#F8AF0D' : '#F2BA49'}
                       opacity={isClipping ? 1.0 : isHigh ? 0.9 : 0.75}
                     />
                   )
@@ -522,10 +527,10 @@ export default function AudioAnalysisClientView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
                         analysisResult.combinedMetrics.samplePeakDbfs >= 0.0
-                          ? 'bg-red-500/20 text-red-300 border-red-500/30'
+                          ? 'bg-status-error/20 text-status-error border-status-error/30'
                           : analysisResult.combinedMetrics.samplePeakDbfs >= -0.5
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          ? 'bg-accent-700/20 text-accent-400 border-accent-700/30'
+                          : 'bg-accent-600/20 text-accent-300 border-accent-600/30'
                       }`}
                     >
                       {analysisResult.combinedMetrics.samplePeakDbfs >= 0.0
@@ -576,10 +581,10 @@ export default function AudioAnalysisClientView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
                         analysisResult.combinedMetrics.crestFactorDb >= 14
-                          ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                          ? 'bg-accent-800/20 text-accent-200 border-accent-800/30'
                           : analysisResult.combinedMetrics.crestFactorDb >= 8
-                          ? 'bg-violet-500/20 text-violet-300 border-violet-500/30'
-                          : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                          ? 'bg-magenta-wine/20 text-magenta border-magenta-wine/30'
+                          : 'bg-accent-700/20 text-accent-400 border-accent-700/30'
                       }`}
                     >
                       {analysisResult.combinedMetrics.crestFactorDb >= 14
@@ -609,8 +614,8 @@ export default function AudioAnalysisClientView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
                         analysisResult.combinedMetrics.isNearFullScaleDetected
-                          ? 'bg-red-500/20 text-red-300 border-red-500/30'
-                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          ? 'bg-status-error/20 text-status-error border-status-error/30'
+                          : 'bg-accent-600/20 text-accent-300 border-accent-600/30'
                       }`}
                     >
                       {analysisResult.combinedMetrics.isNearFullScaleDetected ? 'Detected' : 'None'}
@@ -665,7 +670,7 @@ export default function AudioAnalysisClientView({
                     </div>
                     <div className="rounded-lg bg-black/30 p-2.5 border border-white/5">
                       <span className="text-text-secondary block">Near-Full-Scale</span>
-                      <strong className={`text-sm font-mono mt-1 block ${ch.metrics.isNearFullScaleDetected ? 'text-red-400' : 'text-emerald-400'}`}>
+                      <strong className={`text-sm font-mono mt-1 block ${ch.metrics.isNearFullScaleDetected ? 'text-status-error' : 'text-accent-400'}`}>
                         {ch.metrics.nearFullScaleSampleCount.toLocaleString()}
                       </strong>
                     </div>

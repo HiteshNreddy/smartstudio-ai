@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "test": "node --test tests/authorization-and-crud.test.mjs tests/password-recovery.test.mjs tests/audio-analysis.test.mjs"
+    "test": "node --test tests/authorization-and-crud.test.mjs tests/password-recovery.test.mjs tests/audio-analysis.test.mjs tests/customer-isolation-and-access.test.mjs tests/rls-policy-engine.test.mjs"
   },
   "repository": {
     "type": "git",
@@ -25,7 +25,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",
-    "next": "16.4.0",
+    "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
@@ -35,7 +35,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.6",
     "supabase": "^2.120.0",
     "tailwindcss": "^4",
     "typescript": "^5"

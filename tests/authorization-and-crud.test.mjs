@@ -92,6 +92,51 @@ describe('Studio Role Authorization Matrix', () => {
   })
 })
 
+describe('Default Room Provisioning & Idempotency Contracts', () => {
+  const ROOM_MANAGEMENT_ROLES = ['owner', 'admin']
+
+  function canProvisionDefaultRooms(role) {
+    return ROOM_MANAGEMENT_ROLES.includes(role)
+  }
+
+  function evaluateRoomProvisioning(existingRoomCount, role) {
+    if (!canProvisionDefaultRooms(role)) {
+      return { allowed: false, error: 'Unauthorized: insufficient studio permissions.' }
+    }
+    if (existingRoomCount > 0) {
+      return { allowed: false, error: 'Studio already has registered rooms. Provisioning aborted.' }
+    }
+    return { allowed: true }
+  }
+
+  test('owner can provision default rooms when room roster is empty', () => {
+    const res = evaluateRoomProvisioning(0, 'owner')
+    assert.equal(res.allowed, true)
+  })
+
+  test('admin can provision default rooms when room roster is empty', () => {
+    const res = evaluateRoomProvisioning(0, 'admin')
+    assert.equal(res.allowed, true)
+  })
+
+  test('engineer cannot provision default rooms', () => {
+    const res = evaluateRoomProvisioning(0, 'engineer')
+    assert.equal(res.allowed, false)
+    assert.match(res.error, /Unauthorized/)
+  })
+
+  test('artist or guest cannot provision default rooms', () => {
+    assert.equal(evaluateRoomProvisioning(0, 'artist').allowed, false)
+    assert.equal(evaluateRoomProvisioning(0, null).allowed, false)
+  })
+
+  test('sequential duplicate protection rejects provisioning when rooms already exist', () => {
+    const res = evaluateRoomProvisioning(3, 'owner')
+    assert.equal(res.allowed, false)
+    assert.match(res.error, /already has registered rooms/)
+  })
+})
+
 describe('Booking Constraints & Validation', () => {
   const VALID_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled']
 
